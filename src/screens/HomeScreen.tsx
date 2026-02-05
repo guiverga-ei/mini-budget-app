@@ -52,7 +52,10 @@ function monthKeyFromDate(d: Date): string {
 }
 
 function monthLabel(d: Date): string {
-  return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+  }).format(d);
 }
 
 export default function HomeScreen() {
@@ -73,8 +76,10 @@ export default function HomeScreen() {
   const [editAmountText, setEditAmountText] = useState("");
   const [editNote, setEditNote] = useState("");
 
-    // month filter (statement-like)
-  const [monthCursor, setMonthCursor] = useState<Date>(() => startOfMonth(new Date()));
+  // month filter (statement-like)
+  const [monthCursor, setMonthCursor] = useState<Date>(() =>
+    startOfMonth(new Date()),
+  );
 
   useEffect(() => {
     (async () => {
@@ -85,13 +90,16 @@ export default function HomeScreen() {
     })();
   }, []);
 
-    const activeMonthKey = useMemo(() => monthKeyFromDate(monthCursor), [monthCursor]);
+  const activeMonthKey = useMemo(
+    () => monthKeyFromDate(monthCursor),
+    [monthCursor],
+  );
 
   const filteredItems = useMemo(() => {
     return items.filter((m) => monthKeyFromISO(m.date) === activeMonthKey);
   }, [items, activeMonthKey]);
 
-    const balance = useMemo(() => {
+  const balance = useMemo(() => {
     let sum = 0;
     for (const m of filteredItems) {
       sum += m.type === "INCOME" ? m.amount : -m.amount;
@@ -99,6 +107,24 @@ export default function HomeScreen() {
     return Math.round(sum * 100) / 100;
   }, [filteredItems]);
 
+    const monthTotals = useMemo(() => {
+    let income = 0;
+    let expenses = 0;
+
+    for (const m of filteredItems) {
+      if (m.type === "INCOME") income += m.amount;
+      else expenses += m.amount;
+    }
+
+    income = Math.round(income * 100) / 100;
+    expenses = Math.round(expenses * 100) / 100;
+
+    return {
+      income,
+      expenses,
+      net: Math.round((income - expenses) * 100) / 100,
+    };
+  }, [filteredItems]);
 
   async function addMovement() {
     const amount = parseAmount(amountText);
@@ -218,6 +244,24 @@ export default function HomeScreen() {
         <Text style={styles.balance}>{formatEUR(balance)}</Text>
       </View>
 
+            <View style={styles.totalsRow}>
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>Income</Text>
+          <Text style={styles.totalValue}>{formatEUR(monthTotals.income)}</Text>
+        </View>
+
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>Expenses</Text>
+          <Text style={styles.totalValue}>{formatEUR(monthTotals.expenses)}</Text>
+        </View>
+
+        <View style={styles.totalCard}>
+          <Text style={styles.totalLabel}>Net</Text>
+          <Text style={styles.totalValue}>{formatEUR(monthTotals.net)}</Text>
+        </View>
+      </View>
+
+
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>New movement</Text>
 
@@ -271,9 +315,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      
-
-            <View style={styles.monthHeader}>
+      <View style={styles.monthHeader}>
         <Pressable
           onPress={() => setMonthCursor((d) => addMonths(d, -1))}
           style={styles.monthBtn}
@@ -284,7 +326,8 @@ export default function HomeScreen() {
         <View style={styles.monthCenter}>
           <Text style={styles.monthTitle}>{monthLabel(monthCursor)}</Text>
           <Text style={styles.monthSub}>
-            {filteredItems.length} movement{filteredItems.length === 1 ? "" : "s"}
+            {filteredItems.length} movement
+            {filteredItems.length === 1 ? "" : "s"}
           </Text>
         </View>
 
@@ -296,14 +339,15 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-
       {loading ? (
         <Text style={styles.muted}>Loading…</Text>
       ) : items.length === 0 ? (
-  <Text style={styles.muted}>No movements yet. Add your first one above.</Text>
-) : filteredItems.length === 0 ? (
-  <Text style={styles.muted}>No movements in this month.</Text>
-) : (
+        <Text style={styles.muted}>
+          No movements yet. Add your first one above.
+        </Text>
+      ) : filteredItems.length === 0 ? (
+        <Text style={styles.muted}>No movements in this month.</Text>
+      ) : (
         <FlatList
           data={filteredItems}
           keyExtractor={(x) => x.id}
@@ -403,7 +447,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -475,7 +518,7 @@ const styles = StyleSheet.create({
 
   hint: { color: "#6b7280", fontSize: 12, marginTop: 2 },
 
-    modalOverlay: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "flex-end",
@@ -501,7 +544,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { fontWeight: "700" },
 
-    monthHeader: {
+  monthHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -521,5 +564,27 @@ const styles = StyleSheet.create({
   monthTitle: { fontSize: 16, fontWeight: "700" },
   monthSub: { color: "#6b7280", marginTop: 2, fontSize: 12 },
 
+    totalsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  totalCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#ffffff",
+    gap: 6,
+  },
+  totalLabel: {
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  totalValue: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
 
 });
