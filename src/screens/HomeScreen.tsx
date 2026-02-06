@@ -289,7 +289,7 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Exchange rates (Public API)</Text>
 
         {!rates && !ratesLoading && (
-          <Pressable onPress={loadRates} style={styles.primaryBtn}>
+          <Pressable testID="rates-load-btn" onPress={loadRates} style={styles.primaryBtn}>
             <Text style={styles.primaryBtnText}>Load rates</Text>
           </Pressable>
         )}
@@ -297,13 +297,13 @@ export default function HomeScreen() {
         {ratesLoading && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             <ActivityIndicator />
-            <Text style={styles.muted}>Loading…</Text>
+            <Text testID="rates-loading" style={styles.muted}>Loading…</Text>
           </View>
         )}
 
         {!ratesLoading && ratesError && (
           <View style={{ gap: 10 }}>
-            <Text style={{ color: "#b91c1c", fontWeight: "700" }}>
+            <Text testID="rates-error" style={{ color: "#b91c1c", fontWeight: "700" }}>
               Error: {ratesError}
             </Text>
 
@@ -314,7 +314,7 @@ export default function HomeScreen() {
         )}
 
         {!ratesLoading && !ratesError && rates && (
-          <View style={{ gap: 10 }}>
+          <View testID="rates-box" style={{ gap: 10 }}>
             <View
               style={{
                 padding: 12,
@@ -332,7 +332,7 @@ export default function HomeScreen() {
               <Text style={{ fontSize: 14, fontWeight: "800" }}>BRL: {rates.rates["BRL"]}</Text>
             </View>
 
-            <Pressable onPress={loadRates} style={styles.primaryBtn}>
+            <Pressable testID="rates-refresh-btn" onPress={loadRates} style={styles.primaryBtn}>
               <Text style={styles.primaryBtnText}>Refresh</Text>
             </Pressable>
           </View>
