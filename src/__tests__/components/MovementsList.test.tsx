@@ -14,7 +14,6 @@ describe("MovementsList", () => {
 
     const { getByText } = render(
       <MovementsList
-        loading={false}
         items={items}
         onPressItem={onPressItem}
         onLongPressItem={onLongPressItem}

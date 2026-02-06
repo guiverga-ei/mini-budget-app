@@ -3,31 +3,32 @@ import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
 import type { Movement } from "../types/movement";
 
 type Props = {
-  loading: boolean;
   items: Movement[];
   onPressItem: (item: Movement) => void;
   onLongPressItem: (id: string) => void;
   formatAmount: (amount: number) => string;
+
+  header?: React.ReactElement | null;
+  emptyText?: string;
 };
 
 export default function MovementsList({
-  loading,
   items,
   onPressItem,
   onLongPressItem,
   formatAmount,
+  header = null,
+  emptyText = "No movements yet. Add your first one above.",
 }: Props) {
-  if (loading) return <Text style={styles.muted}>Loading…</Text>;
-  if (items.length === 0)
-    return (
-      <Text style={styles.muted}>No movements yet. Add your first one above.</Text>
-    );
-
   return (
     <FlatList
       data={items}
       keyExtractor={(x) => x.id}
+      ListHeaderComponent={header}
+      ListEmptyComponent={<Text style={styles.muted}>{emptyText}</Text>}
       contentContainerStyle={{ paddingBottom: 24 }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       renderItem={({ item }) => {
         const isIncome = item.type === "INCOME";
         return (
@@ -35,8 +36,9 @@ export default function MovementsList({
             onPress={() => onPressItem(item)}
             onLongPress={() => onLongPressItem(item.id)}
             style={[
-              styles.item,
-              isIncome ? styles.itemIncome : styles.itemExpense,
+                styles.item, 
+                isIncome ? styles.itemIncome : styles.itemExpense, 
+                {marginHorizontal: 16}
             ]}
           >
             <View style={{ flex: 1 }}>
@@ -55,7 +57,7 @@ export default function MovementsList({
 }
 
 const styles = StyleSheet.create({
-  muted: { color: "#6b7280" },
+  muted: { color: "#6b7280", paddingVertical: 8 },
 
   item: {
     padding: 12,
@@ -67,8 +69,8 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 10,
   },
-  itemIncome: { backgroundColor: "#ecfdf5" }, // soft green
-  itemExpense: { backgroundColor: "#fef2f2" }, // soft red
+  itemIncome: { backgroundColor: "#ecfdf5" },
+  itemExpense: { backgroundColor: "#fef2f2" },
 
   itemNote: { fontSize: 15, fontWeight: "600" },
   itemMeta: { color: "#6b7280", marginTop: 2, fontSize: 12 },
