@@ -15,6 +15,8 @@ This project was built as a portfolio piece to practice and demonstrate real-wor
 - Monthly statement-style filter (previous / next month)
 - Automatic balance calculation per selected month
 - Local data persistence using AsyncStorage
+- Currency exchange example API
+- Basic tests
 - Clean and mobile-friendly UI
 - Fully written in TypeScript
 
@@ -38,6 +40,7 @@ This project was built as a portfolio piece to practice and demonstrate real-wor
 - TypeScript
 - AsyncStorage
 - Expo Go (for development)
+- Jest tests
 
 ---
 

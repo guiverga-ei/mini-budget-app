@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,19 @@ import {
   StyleSheet,
   Alert,
   Modal,
+  Keyboard,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 
 import type { Movement, MovementType } from "../types/movement";
-import { loadMovements, saveMovements } from "../lib/storage";
 import ExchangeRatesCard from "../components/ExchangeRatesCard";
 import MovementsList from "../components/MovementsList";
 import NewMovementCard from "../components/NewMovementCard";
 import TotalsRow from "../components/TotalsRow";
+import { useMovements } from "../hooks/useMovements";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -62,9 +67,6 @@ function monthLabel(d: Date): string {
 }
 
 export default function HomeScreen() {
-  const [items, setItems] = useState<Movement[]>([]);
-  const [loading, setLoading] = useState(true);
-
   // form state
   const [type, setType] = useState<MovementType>("EXPENSE");
   const [amountText, setAmountText] = useState("");
@@ -84,19 +86,12 @@ export default function HomeScreen() {
     startOfMonth(new Date()),
   );
 
-  useEffect(() => {
-    (async () => {
-      const loaded = await loadMovements();
-      loaded.sort((a, b) => b.date.localeCompare(a.date));
-      setItems(loaded);
-      setLoading(false);
-    })();
-  }, []);
-
   const activeMonthKey = useMemo(
     () => monthKeyFromDate(monthCursor),
     [monthCursor],
   );
+
+  const { items, loading, add, update, remove } = useMovements();
 
   const filteredItems = useMemo(() => {
     return items.filter((m) => monthKeyFromISO(m.date) === activeMonthKey);
@@ -153,13 +148,10 @@ export default function HomeScreen() {
       date: todayISO(),
     };
 
-    const next = [newItem, ...items];
-    setItems(next);
-    setAmountText("");
-    setNote("");
-
     try {
-      await saveMovements(next);
+      await add(newItem); // ✅ usa o hook
+      setAmountText("");
+      setNote("");
     } catch {
       Alert.alert("Error", "Could not save data locally.");
     }
@@ -206,11 +198,8 @@ export default function HomeScreen() {
       note: cleanNote,
     };
 
-    const next = items.map((x) => (x.id === editing.id ? updated : x));
-    setItems(next);
-
     try {
-      await saveMovements(next);
+      await update(updated);
       closeEdit();
     } catch {
       Alert.alert("Error", "Could not save data locally.");
@@ -218,10 +207,8 @@ export default function HomeScreen() {
   }
 
   async function removeMovement(id: string) {
-    const next = items.filter((x) => x.id !== id);
-    setItems(next);
     try {
-      await saveMovements(next);
+      await remove(id); // ✅ usa o hook
     } catch {
       Alert.alert("Error", "Could not save data locally.");
     }
@@ -239,146 +226,157 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Mini Budget</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Balance</Text>
-        <Text style={styles.balance}>{formatEUR(balance)}</Text>
-      </View>
-
-      <TotalsRow
-        income={formatEUR(monthTotals.income)}
-        expenses={formatEUR(monthTotals.expenses)}
-        net={formatEUR(monthTotals.net)}
-      />
-
-      {/* --- Public API demo (Exchange Rates) --- */}
-      <ExchangeRatesCard />
-
-      <NewMovementCard
-        type={type}
-        amountText={amountText}
-        note={note}
-        onChangeType={setType}
-        onChangeAmountText={setAmountText}
-        onChangeNote={setNote}
-        onAdd={addMovement}
-      />
-
-      <View style={styles.monthHeader}>
-        <Pressable
-          onPress={() => setMonthCursor((d) => addMonths(d, -1))}
-          style={styles.monthBtn}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.monthBtnText}>Prev</Text>
-        </Pressable>
+          <Text style={styles.title}>Mini Budget</Text>
 
-        <View style={styles.monthCenter}>
-          <Text style={styles.monthTitle}>{monthLabel(monthCursor)}</Text>
-          <Text style={styles.monthSub}>
-            {filteredItems.length} movement
-            {filteredItems.length === 1 ? "" : "s"}
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={() => setMonthCursor((d) => addMonths(d, +1))}
-          style={styles.monthBtn}
-        >
-          <Text style={styles.monthBtnText}>Next</Text>
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <Text style={styles.muted}>Loading…</Text>
-      ) : items.length === 0 ? (
-        <Text style={styles.muted}>
-          No movements yet. Add your first one above.
-        </Text>
-      ) : filteredItems.length === 0 ? (
-        <Text style={styles.muted}>No movements in this month.</Text>
-      ) : (
-        <MovementsList
-          loading={false}
-          items={filteredItems}
-          onPressItem={openEdit}
-          onLongPressItem={(id) => confirmRemove(id)}
-          formatAmount={formatEUR}
-        />
-      )}
-
-      <Text style={styles.hint}>Tip: long-press a movement to delete it.</Text>
-
-      <Modal visible={editOpen} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit movement</Text>
-
-            <View style={styles.row}>
-              <Pressable
-                onPress={() => setEditType("EXPENSE")}
-                style={[
-                  styles.chip,
-                  editType === "EXPENSE" && styles.chipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    editType === "EXPENSE" && styles.chipTextActive,
-                  ]}
-                >
-                  Expense
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setEditType("INCOME")}
-                style={[
-                  styles.chip,
-                  editType === "INCOME" && styles.chipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    editType === "INCOME" && styles.chipTextActive,
-                  ]}
-                >
-                  Income
-                </Text>
-              </Pressable>
-            </View>
-
-            <TextInput
-              value={editAmountText}
-              onChangeText={setEditAmountText}
-              placeholder="Amount (e.g. 12.50)"
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-
-            <TextInput
-              value={editNote}
-              onChangeText={setEditNote}
-              placeholder="Note (e.g. Groceries)"
-              style={styles.input}
-            />
-
-            <View style={styles.modalButtons}>
-              <Pressable onPress={closeEdit} style={styles.secondaryBtn}>
-                <Text style={styles.secondaryBtnText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable onPress={saveEdit} style={styles.primaryBtn}>
-                <Text style={styles.primaryBtnText}>Save</Text>
-              </Pressable>
-            </View>
+          <View style={styles.card}>
+            <Text style={styles.label}>Balance</Text>
+            <Text style={styles.balance}>{formatEUR(balance)}</Text>
           </View>
-        </View>
-      </Modal>
-    </View>
+
+          <TotalsRow
+            income={formatEUR(monthTotals.income)}
+            expenses={formatEUR(monthTotals.expenses)}
+            net={formatEUR(monthTotals.net)}
+          />
+
+          <ExchangeRatesCard />
+
+          <NewMovementCard
+            type={type}
+            amountText={amountText}
+            note={note}
+            onChangeType={setType}
+            onChangeAmountText={setAmountText}
+            onChangeNote={setNote}
+            onAdd={addMovement}
+          />
+
+          <View style={styles.monthHeader}>
+            <Pressable
+              onPress={() => setMonthCursor((d) => addMonths(d, -1))}
+              style={styles.monthBtn}
+            >
+              <Text style={styles.monthBtnText}>Prev</Text>
+            </Pressable>
+
+            <View style={styles.monthCenter}>
+              <Text style={styles.monthTitle}>{monthLabel(monthCursor)}</Text>
+              <Text style={styles.monthSub}>
+                {filteredItems.length} movement
+                {filteredItems.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => setMonthCursor((d) => addMonths(d, +1))}
+              style={styles.monthBtn}
+            >
+              <Text style={styles.monthBtnText}>Next</Text>
+            </Pressable>
+          </View>
+
+          {loading ? (
+            <Text style={styles.muted}>Loading…</Text>
+          ) : items.length === 0 ? (
+            <Text style={styles.muted}>
+              No movements yet. Add your first one above.
+            </Text>
+          ) : filteredItems.length === 0 ? (
+            <Text style={styles.muted}>No movements in this month.</Text>
+          ) : (
+            <MovementsList
+              loading={false}
+              items={filteredItems}
+              onPressItem={openEdit}
+              onLongPressItem={(id) => confirmRemove(id)}
+              formatAmount={formatEUR}
+            />
+          )}
+
+          <Text style={styles.hint}>
+            Tip: long-press a movement to delete it.
+          </Text>
+
+          <Modal visible={editOpen} animationType="slide" transparent>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Edit movement</Text>
+
+                <View style={styles.row}>
+                  <Pressable
+                    onPress={() => setEditType("EXPENSE")}
+                    style={[
+                      styles.chip,
+                      editType === "EXPENSE" && styles.chipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editType === "EXPENSE" && styles.chipTextActive,
+                      ]}
+                    >
+                      Expense
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setEditType("INCOME")}
+                    style={[
+                      styles.chip,
+                      editType === "INCOME" && styles.chipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        editType === "INCOME" && styles.chipTextActive,
+                      ]}
+                    >
+                      Income
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <TextInput
+                  value={editAmountText}
+                  onChangeText={setEditAmountText}
+                  placeholder="Amount (e.g. 12.50)"
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                />
+
+                <TextInput
+                  value={editNote}
+                  onChangeText={setEditNote}
+                  placeholder="Note (e.g. Groceries)"
+                  style={styles.input}
+                />
+
+                <View style={styles.modalButtons}>
+                  <Pressable onPress={closeEdit} style={styles.secondaryBtn}>
+                    <Text style={styles.secondaryBtnText}>Cancel</Text>
+                  </Pressable>
+
+                  <Pressable onPress={saveEdit} style={styles.primaryBtn}>
+                    <Text style={styles.primaryBtnText}>Save</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -472,7 +470,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  
+
   input: {
     borderWidth: 1,
     borderColor: "#e5e7eb",
@@ -486,5 +484,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-
 });
