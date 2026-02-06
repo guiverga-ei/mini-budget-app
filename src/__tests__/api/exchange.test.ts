@@ -1,4 +1,4 @@
-import { fetchRates } from "./exchange";
+import { fetchRates } from "../../api/exchange";
 
 describe("fetchRates", () => {
   beforeEach(() => {

@@ -1,36 +1,34 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
-import HomeScreen from "./HomeScreen";
 
-// Vamos mockar o módulo da API
-jest.mock("../api/exchange", () => ({
+jest.mock("../../api/exchange", () => ({
   fetchRates: jest.fn(),
 }));
 
-import { fetchRates } from "../api/exchange";
+import { fetchRates } from "../../api/exchange";
+import ExchangeRatesCard from "../../components/ExchangeRatesCard";
 
-describe("HomeScreen - Exchange rates card", () => {
+const fetchRatesMock = fetchRates as jest.MockedFunction<typeof fetchRates>;
+
+describe("ExchangeRatesCard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it("loads and shows rates when user taps 'Load rates'", async () => {
-    (fetchRates as jest.Mock).mockResolvedValue({
+    fetchRatesMock.mockResolvedValue({
       amount: 1,
       base: "EUR",
       date: "2026-01-01",
       rates: { USD: 1.1, GBP: 0.85, BRL: 5.4 },
-    });
+    } as any);
 
-    const { getByTestId, queryByTestId, getByText } = render(<HomeScreen />);
+    const { getByTestId, queryByTestId, getByText } = render(<ExchangeRatesCard />);
 
-    // clica no botão
     fireEvent.press(getByTestId("rates-load-btn"));
 
-    // deve mostrar loading
     expect(getByTestId("rates-loading")).toBeTruthy();
 
-    // quando resolve, deve mostrar a caixa com os valores
     await waitFor(() => {
       expect(queryByTestId("rates-loading")).toBeNull();
       expect(getByTestId("rates-box")).toBeTruthy();
@@ -39,21 +37,18 @@ describe("HomeScreen - Exchange rates card", () => {
       expect(getByText(/BRL:/)).toBeTruthy();
     });
 
-    // e deve ter chamado a API com EUR
-    expect(fetchRates).toHaveBeenCalledWith("EUR");
+    expect(fetchRatesMock).toHaveBeenCalledWith("EUR");
   });
 
   it("shows error when API fails", async () => {
-    (fetchRates as jest.Mock).mockRejectedValue(new Error("Network down"));
+    fetchRatesMock.mockRejectedValue(new Error("Network down"));
 
-    const { getByTestId, queryByTestId } = render(<HomeScreen />);
+    const { getByTestId, queryByTestId } = render(<ExchangeRatesCard />);
 
     fireEvent.press(getByTestId("rates-load-btn"));
 
-    // loading aparece
     expect(getByTestId("rates-loading")).toBeTruthy();
 
-    // depois deve aparecer erro
     await waitFor(() => {
       expect(queryByTestId("rates-loading")).toBeNull();
       expect(getByTestId("rates-error")).toBeTruthy();

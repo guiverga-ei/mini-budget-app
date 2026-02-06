@@ -4,16 +4,17 @@ import {
   Text,
   TextInput,
   Pressable,
-  FlatList,
   StyleSheet,
   Alert,
   Modal,
-  ActivityIndicator,
 } from "react-native";
 
 import type { Movement, MovementType } from "../types/movement";
 import { loadMovements, saveMovements } from "../lib/storage";
-import { fetchRates, type ExchangeResponse } from "../api/exchange";
+import ExchangeRatesCard from "../components/ExchangeRatesCard";
+import MovementsList from "../components/MovementsList";
+import NewMovementCard from "../components/NewMovementCard";
+import TotalsRow from "../components/TotalsRow";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -83,11 +84,6 @@ export default function HomeScreen() {
     startOfMonth(new Date()),
   );
 
-  // ---- Public API demo (exchange rates) ----
-  const [rates, setRates] = useState<ExchangeResponse | null>(null);
-  const [ratesLoading, setRatesLoading] = useState(false);
-  const [ratesError, setRatesError] = useState<string | null>(null);
-
   useEffect(() => {
     (async () => {
       const loaded = await loadMovements();
@@ -132,20 +128,6 @@ export default function HomeScreen() {
       net: Math.round((income - expenses) * 100) / 100,
     };
   }, [filteredItems]);
-
-  async function loadRates() {
-    try {
-      setRatesError(null);
-      setRatesLoading(true);
-
-      const data = await fetchRates("EUR");
-      setRates(data);
-    } catch (e: any) {
-      setRatesError(e?.message ?? "Unknown error");
-    } finally {
-      setRatesLoading(false);
-    }
-  }
 
   async function addMovement() {
     const amount = parseAmount(amountText);
@@ -265,132 +247,24 @@ export default function HomeScreen() {
         <Text style={styles.balance}>{formatEUR(balance)}</Text>
       </View>
 
-      <View style={styles.totalsRow}>
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Income</Text>
-          <Text style={styles.totalValue}>{formatEUR(monthTotals.income)}</Text>
-        </View>
-
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Expenses</Text>
-          <Text style={styles.totalValue}>
-            {formatEUR(monthTotals.expenses)}
-          </Text>
-        </View>
-
-        <View style={styles.totalCard}>
-          <Text style={styles.totalLabel}>Net</Text>
-          <Text style={styles.totalValue}>{formatEUR(monthTotals.net)}</Text>
-        </View>
-      </View>
+      <TotalsRow
+        income={formatEUR(monthTotals.income)}
+        expenses={formatEUR(monthTotals.expenses)}
+        net={formatEUR(monthTotals.net)}
+      />
 
       {/* --- Public API demo (Exchange Rates) --- */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Exchange rates (Public API)</Text>
+      <ExchangeRatesCard />
 
-        {!rates && !ratesLoading && (
-          <Pressable testID="rates-load-btn" onPress={loadRates} style={styles.primaryBtn}>
-            <Text style={styles.primaryBtnText}>Load rates</Text>
-          </Pressable>
-        )}
-
-        {ratesLoading && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <ActivityIndicator />
-            <Text testID="rates-loading" style={styles.muted}>Loading…</Text>
-          </View>
-        )}
-
-        {!ratesLoading && ratesError && (
-          <View style={{ gap: 10 }}>
-            <Text testID="rates-error" style={{ color: "#b91c1c", fontWeight: "700" }}>
-              Error: {ratesError}
-            </Text>
-
-            <Pressable onPress={loadRates} style={styles.primaryBtn}>
-              <Text style={styles.primaryBtnText}>Try again</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {!ratesLoading && !ratesError && rates && (
-          <View testID="rates-box" style={{ gap: 10 }}>
-            <View
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#e5e7eb",
-                gap: 6,
-              }}
-            >
-              <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "600" }}>
-                Base: {rates.base} · Date: {rates.date} 
-              </Text>
-              <Text style={{ fontSize: 14, fontWeight: "800" }}>USD: {rates.rates["USD"]}</Text>
-              <Text style={{ fontSize: 14, fontWeight: "800" }}>GBP: {rates.rates["GBP"]}</Text>
-              <Text style={{ fontSize: 14, fontWeight: "800" }}>BRL: {rates.rates["BRL"]}</Text>
-            </View>
-
-            <Pressable testID="rates-refresh-btn" onPress={loadRates} style={styles.primaryBtn}>
-              <Text style={styles.primaryBtnText}>Refresh</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>New movement</Text>
-
-        <View style={styles.row}>
-          <Pressable
-            onPress={() => setType("EXPENSE")}
-            style={[styles.chip, type === "EXPENSE" && styles.chipActive]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                type === "EXPENSE" && styles.chipTextActive,
-              ]}
-            >
-              Expense
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setType("INCOME")}
-            style={[styles.chip, type === "INCOME" && styles.chipActive]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                type === "INCOME" && styles.chipTextActive,
-              ]}
-            >
-              Income
-            </Text>
-          </Pressable>
-        </View>
-
-        <TextInput
-          value={amountText}
-          onChangeText={setAmountText}
-          placeholder="Amount (e.g. 12.50)"
-          keyboardType="decimal-pad"
-          style={styles.input}
-        />
-
-        <TextInput
-          value={note}
-          onChangeText={setNote}
-          placeholder="Note (e.g. Groceries)"
-          style={styles.input}
-        />
-
-        <Pressable onPress={addMovement} style={styles.primaryBtn}>
-          <Text style={styles.primaryBtnText}>Add</Text>
-        </Pressable>
-      </View>
+      <NewMovementCard
+        type={type}
+        amountText={amountText}
+        note={note}
+        onChangeType={setType}
+        onChangeAmountText={setAmountText}
+        onChangeNote={setNote}
+        onAdd={addMovement}
+      />
 
       <View style={styles.monthHeader}>
         <Pressable
@@ -425,32 +299,12 @@ export default function HomeScreen() {
       ) : filteredItems.length === 0 ? (
         <Text style={styles.muted}>No movements in this month.</Text>
       ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(x) => x.id}
-          contentContainerStyle={{ paddingBottom: 24 }}
-          renderItem={({ item }) => {
-            const isIncome = item.type === "INCOME";
-            return (
-              <Pressable
-                onPress={() => openEdit(item)}
-                onLongPress={() => confirmRemove(item.id)}
-                style={[
-                  styles.item,
-                  isIncome ? styles.itemIncome : styles.itemExpense,
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemNote}>{item.note}</Text>
-                  <Text style={styles.itemMeta}>{item.date}</Text>
-                </View>
-
-                <Text style={styles.itemAmount}>
-                  {isIncome ? "+" : "-"} {formatEUR(item.amount)}
-                </Text>
-              </Pressable>
-            );
-          }}
+        <MovementsList
+          loading={false}
+          items={filteredItems}
+          onPressItem={openEdit}
+          onLongPressItem={(id) => confirmRemove(id)}
+          formatAmount={formatEUR}
         />
       )}
 
@@ -548,44 +402,14 @@ const styles = StyleSheet.create({
 
   row: { flexDirection: "row", gap: 10 },
 
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
   chipActive: { backgroundColor: "#111827", borderColor: "#111827" },
   chipText: { color: "#111827", fontWeight: "600" },
   chipTextActive: { color: "#ffffff" },
 
-  input: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 12,
-  },
-
-  primaryBtn: {
-    backgroundColor: "#111827",
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
   primaryBtnText: { color: "white", fontWeight: "700" },
 
   muted: { color: "#6b7280" },
 
-  item: {
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
-  },
   itemIncome: { backgroundColor: "#ecfdf5" }, // soft green
   itemExpense: { backgroundColor: "#fef2f2" }, // soft red
 
@@ -641,26 +465,26 @@ const styles = StyleSheet.create({
   monthTitle: { fontSize: 16, fontWeight: "700" },
   monthSub: { color: "#6b7280", marginTop: 2, fontSize: 12 },
 
-  totalsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  totalCard: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 16,
+  chip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    backgroundColor: "#ffffff",
-    gap: 6,
   },
-  totalLabel: {
-    color: "#6b7280",
-    fontSize: 12,
-    fontWeight: "600",
+  
+  input: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    padding: 12,
   },
-  totalValue: {
-    fontSize: 14,
-    fontWeight: "800",
+
+  primaryBtn: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
   },
+
 });
