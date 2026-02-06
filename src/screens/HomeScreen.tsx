@@ -287,7 +287,6 @@ export default function HomeScreen() {
       {/* --- Public API demo (Exchange Rates) --- */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Exchange rates (Public API)</Text>
-        <Text style={styles.muted}>Demo: fetch EUR rates from a public endpoint.</Text>
 
         {!rates && !ratesLoading && (
           <Pressable onPress={loadRates} style={styles.primaryBtn}>
@@ -326,7 +325,7 @@ export default function HomeScreen() {
               }}
             >
               <Text style={{ color: "#6b7280", fontSize: 12, fontWeight: "600" }}>
-                Base: {rates.base} · Date: {rates.date}
+                Base: {rates.base} · Date: {rates.date} 
               </Text>
               <Text style={{ fontSize: 14, fontWeight: "800" }}>USD: {rates.rates["USD"]}</Text>
               <Text style={{ fontSize: 14, fontWeight: "800" }}>GBP: {rates.rates["GBP"]}</Text>
